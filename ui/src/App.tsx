@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePageInfinite } from "./Api";
 import "./App.css";
 import { Tweet } from "react-tweet";
@@ -24,16 +24,52 @@ function App() {
     {}
   );
 
+  const flattenTweets = useMemo(
+    () => (data ?? []).flatMap((b) => (!b.batch ? [] : b.page.statuses)),
+    [data]
+  );
+
+  const [focusIndex, setFocusIndex] = useState(-1);
+  useEffect(() => {
+    if (!data) {
+      return;
+    }
+    if (focusIndex === -1) {
+      return;
+    }
+
+    const url = new URL(location.href);
+    url.hash = `#tweet-${flattenTweets[focusIndex].id}`;
+    location.replace(url.toString());
+    if (focusIndex === flattenTweets.length - 1) {
+      setSize((curr) => curr + 1);
+    }
+  }, [data, flattenTweets, focusIndex, setSize]);
+
+  useEffect(() => {
+    const handleKeydown = (evt: KeyboardEvent): void => {
+      switch (evt.key) {
+        case "j":
+          setFocusIndex((curr) => Math.min(curr + 1, flattenTweets.length - 1));
+          break;
+        case "k":
+          setFocusIndex((curr) => Math.max(curr - 1, 0));
+          break;
+      }
+    };
+    document.documentElement.addEventListener("keydown", handleKeydown);
+    return () =>
+      document.documentElement.removeEventListener("keydown", handleKeydown);
+  }, [flattenTweets.length]);
+
   useEffect(() => {
     if (!data) return;
     if (size < 2) return;
     const batchId = data[data.length - 1]?.batch?.id;
     if (batchId) {
-      history.replaceState(
-        {},
-        "",
-        `${location.pathname}?batch=${encodeURIComponent(batchId)}`
-      );
+      const url = new URL(location.href);
+      url.searchParams.set("batch", batchId);
+      history.replaceState({}, "", url.toString());
     }
   }, [size, data]);
 
@@ -73,6 +109,7 @@ function App() {
                   <div
                     key={`${page.id}-${status.id}`}
                     className="liked-tweet"
+                    id={`tweet-${status.id}`}
                     data-status-id={status.id}
                   >
                     <Tweet id={status.id} />
