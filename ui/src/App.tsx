@@ -55,6 +55,9 @@ function App() {
         case "k":
           setFocusIndex((curr) => Math.max(curr - 1, 0));
           break;
+        case ".":
+          location.replace("/");
+          break;
       }
     };
     document.documentElement.addEventListener("keydown", handleKeydown);
